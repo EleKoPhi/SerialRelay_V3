@@ -40,6 +40,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui.CmdSendButton.clicked.connect(self.CmdButtonPressed)
         self.ui.SyncClamp15CheckBox.clicked.connect(self.syncButtonPressed)
 
+        self.ui.C2Button.setEnabled(False)
+        self.ui.C3Button.setEnabled(False)
+        self.ui.C4Button.setEnabled(False)
+        self.ui.C5Button.setEnabled(False)
+        self.ui.C6Button.setEnabled(False)
+        self.ui.C7Button.setEnabled(False)
+        self.ui.C8Button.setEnabled(False)
+
     def AllOnButtonEvent(self):
         self.Board.TurnAllOn()
         self.ui.C1Button.setChecked(True)
@@ -113,6 +121,24 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 self.setChannelButton(8 - channel, False)
 
     def CButtonEvent(self):
+
+        if not self.ui.C1Button.isChecked():
+            self.ui.C2Button.setEnabled(False)
+            self.ui.C3Button.setEnabled(False)
+            self.ui.C4Button.setEnabled(False)
+            self.ui.C5Button.setEnabled(False)
+            self.ui.C6Button.setEnabled(False)
+            self.ui.C7Button.setEnabled(False)
+            self.ui.C8Button.setEnabled(False)
+        
+        if self.ui.C1Button.isChecked():
+            self.ui.C2Button.setEnabled(True)
+            self.ui.C3Button.setEnabled(True)
+            self.ui.C4Button.setEnabled(True)
+            self.ui.C5Button.setEnabled(True)
+            self.ui.C6Button.setEnabled(True)
+            self.ui.C7Button.setEnabled(True)
+            self.ui.C8Button.setEnabled(True)
 
         self.Board.SetRelayState(1, self.ui.C1Button.isChecked())
         self.Board.SetRelayState(2, self.ui.C2Button.isChecked())
