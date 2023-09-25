@@ -1,0 +1,49 @@
+{
+    "Programs": [
+        {
+            "ID": 0,
+            "name": "ALL ON",
+            "event": "Single",
+            "definition": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+            ]
+        },
+        {
+            "ID": 1,
+            "name": "ALL OFF",
+            "event": "Single",
+            "definition": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ]
+        },
+        {
+            "ID": 3,
+            "name": "Charge",
+            "event": "Single",
+            "definition": [
+                1,
+                0,
+                1,
+                0,
+                1,
+                0,
+                0,
+                0
+            ]
+        }
+    ]
+}

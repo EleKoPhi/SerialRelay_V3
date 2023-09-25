@@ -9,6 +9,7 @@ import os
 import threading
 
 from UiToPy import *
+from json import *
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -22,6 +23,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.SyncActive = False
 
         self.Board.TurnAllOff()
+
+
+
 
         self.ui.StatusLabel.setText("System Status: Connected")
         self.ui.StatusLabel.setStyleSheet("background-color: green")
@@ -140,15 +144,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.ui.C7Button.setEnabled(True)
             self.ui.C8Button.setEnabled(True)
 
-        self.Board.SetRelayState(1, self.ui.C1Button.isChecked())
-        self.Board.SetRelayState(2, self.ui.C2Button.isChecked())
-        self.Board.SetRelayState(3, self.ui.C3Button.isChecked())
-        self.Board.SetRelayState(4, self.ui.C4Button.isChecked())
-        self.Board.SetRelayState(5, self.ui.C5Button.isChecked())
-        self.Board.SetRelayState(6, self.ui.C6Button.isChecked())
-        self.Board.SetRelayState(7, self.ui.C7Button.isChecked())
-        self.Board.SetRelayState(8, self.ui.C8Button.isChecked())
-        self.Board.SendStateToBoard()
+        self.Board.setRelayState(1, self.ui.C1Button.isChecked())
+        self.Board.setRelayState(2, self.ui.C2Button.isChecked())
+        self.Board.setRelayState(3, self.ui.C3Button.isChecked())
+        self.Board.setRelayState(4, self.ui.C4Button.isChecked())
+        self.Board.setRelayState(5, self.ui.C5Button.isChecked())
+        self.Board.setRelayState(6, self.ui.C6Button.isChecked())
+        self.Board.setRelayState(7, self.ui.C7Button.isChecked())
+        self.Board.setRelayState(8, self.ui.C8Button.isChecked())
+        self.Board.sendStateToHardware()
 
     def CmdButtonPressed(self):
         cmd = self.ui.CmdInput.text()
@@ -169,7 +173,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         print(processed)
 
         for channel in range(1,9):
-            self.Board.SetRelayState(channel,False)
+            self.Board.setRelayState(channel,False)
         timeBuffer_t0 = 0
         timeBuffer_t1 = 0
 
@@ -178,7 +182,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 continue
 
             if element.startswith("t"):
-                self.Board.SendStateToBoard()
+                self.Board.sendStateToHardware()
                 print("Sync")
                 self.SyncRelayStateWithButtons()    
 
@@ -187,13 +191,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 timeBuffer_t0 = timeBuffer_t1
 
                 for channel in range(1,9):
-                    self.Board.SetRelayState(channel,False)
+                    self.Board.setRelayState(channel,False)
 
             if element.startswith("c"):
-                self.Board.SetRelayState(int(element[1]),True)
+                self.Board.setRelayState(int(element[1]),True)
 
         self.SyncRelayStateWithButtons()    
-        self.Board.SendStateToBoard()
+        self.Board.sendStateToHardware()
         
     def syncButtonPressed(self):
         if self.ui.C7Button.isChecked() and self.ui.C6Button.isChecked() and self.ui.SyncClamp15CheckBox.isChecked():

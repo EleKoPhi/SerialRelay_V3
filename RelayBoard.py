@@ -25,23 +25,55 @@ class RelayBoard(QObject):
     connectionStatus = False
     connectionCounter = 0
 
+    possiblePorts = []
+
+    checkConnection = True
+
+    StatusSignal = pyqtSignal(bool)
+
     def __init__(self):
         super(RelayBoard, self).__init__()
+        self.getPossiblePortList()
+        self.SerialConnection = None
 
-        ports = serial.tools.list_ports.comports()
-        for port in ports:
-            if "usbserial-240" in port.name:
-                print(port)
-                self.SerialConnection = serial.Serial(port.device, timeout=1, baudrate=9600)
-                time.sleep(0.1)
-                self.SerialConnection.write(self.initCmd)
-                time.sleep(0.1)
-                self.SerialConnection.write(self.initCmd_3)
-            else:
-                self.connectionStatus = False
+    def connectToPort(self, port):
 
-        time.sleep(1)
+        try:
+            self.SerialConnection = serial.Serial(port.device, timeout=1, baudrate=9600)
+        except:
+            return False
+
+        self.SerialConnection.write(self.initCmd)
+        self.SerialConnection.write(self.initCmd_3)
         self.SerialConnection.write(self.startupCmd)
+        self.TurnAllOff()
+        time.sleep(1)
+        self.TurnAllOn()
+
+        return True
+
+    def checkIfConnectionStillPressent(self):
+        #No connection established
+        if self.SerialConnection == None:
+            self.connectionStatus = False
+            self.StatusSignal.emit(self.connectionStatus)
+            return False
+                
+        #Check port elements and return true if port still exists
+        for port in self.getPossiblePortList():
+            if self.SerialConnection.name.endswith(port.name):
+                self.connectionStatus = True
+                self.StatusSignal.emit(self.connectionStatus)
+                return True
+                
+        #If established port is no longer pressent return false
+        self.connectionStatus = False
+        self.StatusSignal.emit(self.connectionStatus)
+        return False
+
+    def getPossiblePortList(self):
+        self.possiblePorts = serial.tools.list_ports.comports()
+        return self.possiblePorts
 
     def set_bit(self, value, bit):
         return value | (1<<bit)
@@ -67,7 +99,7 @@ class RelayBoard(QObject):
         self.relayState = self.set_bit(self.relayState, bitPossition)
         self.SerialConnection.write(self.relayState)
 
-    def SetRelayState(self, channel, status):
+    def setRelayState(self, channel, status):
         
         bit = channel - 1
         if status == True:
@@ -75,6 +107,9 @@ class RelayBoard(QObject):
         if status == False:
             self.relayState = self.set_bit(self.relayState, bit)
 
-    def SendStateToBoard(self):
+    def sendStateToHardware(self):
         print(self.relayState)
         self.SerialConnection.write(self.relayState.to_bytes(1,"big"))
+
+#b = RelayBoard()
+#b.connectToPort(None)

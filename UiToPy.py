@@ -6,7 +6,7 @@ import os
 
 import threading
 
-ui_file = r"/Users/philippmochti/Documents/PlatformIO/Projects/ClampControl/ClampControl.ui"
+ui_file = r"/Users/philippmochti/Documents/PlatformIO/Projects/ClampControl/ClampControl_v2.ui"
 
 
 def trans_py_file(filename):
@@ -25,3 +25,5 @@ def convert_ui_to_py():
     print("To .py file: " + py_file)
 
     os.system(cmd)
+
+convert_ui_to_py()
