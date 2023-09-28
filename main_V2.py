@@ -17,6 +17,8 @@ import threading
 from UiToPy import *
 from config import *
 
+from thread import *
+
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     _cButtons = []
@@ -24,11 +26,20 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     _preDefinedPrograms = []
     _programButtons = []
 
+    _stopProgram = QtCore.pyqtSignal()
+    _startProgram = QtCore.pyqtSignal()
+    _resetProgram = QtCore.pyqtSignal()
+    _programFinished = QtCore.pyqtSignal()
+
+    _executeProgram = False
+    _programStatus = "programFinished"
+
     def __init__(self):
         # Basic Pyqt commands to setup an application window
         super(ApplicationWindow, self).__init__()
         self.ui = Ui_ClampSimulator()
         self.ui.setupUi(self)
+        self.threadpool = QThreadPool()
 
         # Load some basic configurations
         self.config = config()
@@ -59,7 +70,40 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # 1000ms Timer to check if serial device is still pressent
         self.setUpConnectionCheckTimer(1000)
 
+        self._stopProgram.connect(self.stopProgram)
+        self._startProgram.connect(self.startProgram)
+        self._resetProgram.connect(self.resetProgram)
+        self._programFinished.connect(self.programFinished)
+
         print(self.channelConnectFunction())
+
+    @QtCore.pyqtSlot()
+    def tryToConnect(self):
+        portElementKey = self.sender()
+        port = self.ui.MenueBarElements[portElementKey.text()][0]
+        print(port)
+        print("Connect to:" + port.name)
+        if self.Board.connectToPort(port):
+            self.setSystemStatus("Connected", "green")
+        else:
+            self.setSystemStatus("No Connection!", "red")
+
+    @QtCore.pyqtSlot()
+    def stopProgram(self):
+        self._programStatus = "stopProgram"
+        self._executeProgram = False
+
+    @QtCore.pyqtSlot()
+    def startProgram(self):
+        self._programStatus = "startProgram"
+
+    @QtCore.pyqtSlot()
+    def resetProgram(self):
+        self._programStatus = "resetProgram"
+
+    @QtCore.pyqtSlot()
+    def programFinished(self):
+        self._programStatus = "programFinished"
 
     def stackToList(self, stackList, objectName, max):
         for element in range(max):
@@ -75,15 +119,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def loadProgramsToGui(self):
         for program in self._preDefinedPrograms:
             self._programButtons[program.ID].setText(program.Name)
-            if program.event == "Single":
-                self._programButtons[program.ID].setCheckable(False)
-            else:
-                self._programButtons[program.ID].setCheckable(True)
 
     def connectPrograms(self):
         for program in self._preDefinedPrograms:
             self._programButtons[program.ID].clicked.connect(
-                self.executeProgrammFactory(program.ProgramDefinition)
+                self.executeProgrammFactory(
+                    program.ProgramDefinition, program.event, program.ID
+                )
             )
 
     def loardProgramsDefinition(self):
@@ -93,10 +135,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         for programdefinition in programJson["Programs"]:
             self._preDefinedPrograms.append(program(programdefinition))
 
+    def resetProgramButtons(self):
+        for _programButton in self._programButtons:
+            _programButton.setChecked(False)
+
     def loadChannelDescription(self):
-        for index, label in enumerate(self._cDescriptions):
-            channel = index + 1
-            label.setText(self.config.getChannelDescription(channel))
+        for index, _cDescriptions in enumerate(self._cDescriptions):
+            channel = self.indexToChannel(index)
+            _cDescriptions.setText(self.config.getChannelDescription(channel))
 
     def setUpConnectionCheckTimer(self, interval):
         # Create, configure and start timer
@@ -118,21 +164,78 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.setSystemStatus("No Connection!", "red")
             self.deactivateAllButtons()
 
-    def executeProgrammFactory(self, definition):
-        def executeProgram():
-            for index, element in enumerate(definition):
-                channel = index + 1
-                if element == 1:
-                    element = ON
-                    self.setChecked(channel)
-                else:
-                    element = OFF
-                    self.setUnChecked(channel)
+    def startProgressBar(self, runTime, programm):
+        self.ui.progressBar.setValue(0)
+        print(programm)
+        runnedTime = 0
+        setCounter = 0
+        self.executeChannelSet(programm[setCounter][1])
+        setCounter = setCounter + 1
 
-                self.Board.setRelayState(channel, element)
+        while self._executeProgram:
+            runnedTime = runnedTime + 0.01
+            if runnedTime > programm[setCounter][0]:
+                self.executeChannelSet((programm[setCounter][1]))
+                setCounter = setCounter + 1
+
+            time.sleep(0.01)
+            newValue = int((runnedTime / runTime) * 100)
+            self.ui.progressBar.setValue(newValue)
+            QApplication.processEvents()
+            if runnedTime > runTime:
+                break
+
+        self._programFinished.emit()
+
+    def executeProgrammFactory(self, definition, event, id):
+        def executeProgram():
+            self.resetProgramButtons()
+
+            self._programButtons[id].setChecked(True)
+
+            if event == "TimeBased":
+                if self._programStatus != "startProgram":
+                    self._programStatus = "startProgram"
+                    self._executeProgram = True
+                    runTime = definition[-1][0] - definition[0][0]
+                    timeBasedFunction = myThread(lambda: print("timeThread"))
+                    progressBar = myThread(self.startProgressBar(runTime, definition))
+                    self.threadpool.start(timeBasedFunction)
+                    self.threadpool.start(progressBar)
+                else:
+                    self._stopProgram.emit()
+                    print("Could not restart")
+
+            else:
+                for index, element in enumerate(definition):
+                    channel = index + 1
+                    if element == 1:
+                        element = ON
+                        self.setChecked(channel)
+                    else:
+                        element = OFF
+                        self.setUnChecked(channel)
+
+                    self.Board.setRelayState(channel, element)
                 self.Board.sendStateToHardware()
 
         return executeProgram
+
+    def controlRelayState(self, definition):
+        for index, state in enumerate(definition):
+            self.Board.setRelayState(self.indexToChannel(index), state)
+        self.Board.sendStateToHardware()
+
+    def controlGuiAppearance(self, definition):
+        for index, state in enumerate(definition):
+            if state == 1:
+                self.setChecked(self.indexToChannel(index))
+            else:
+                self.setUnChecked(self.indexToChannel(index))
+
+    def executeChannelSet(self, definition):
+        self.controlRelayState(definition)
+        self.controlGuiAppearance(definition)
 
     def activateAllButtons(self):
         for button in self._cButtons:
@@ -160,9 +263,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def setChecked(self, channel):
         self._cButtons[self.channelToIndex(channel)].setChecked(True)
+        self._cButtons[self.channelToIndex(channel)].setText(
+            "C{}: {}".format(channel, "ON ")
+        )
 
     def setUnChecked(self, channel):
         self._cButtons[self.channelToIndex(channel)].setChecked(False)
+        self._cButtons[self.channelToIndex(channel)].setText(
+            "C{}: {}".format(channel, "OFF ")
+        )
 
     def indexToChannel(self, index):
         return index + 1
@@ -179,12 +288,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui.SystemOutput.setStyleSheet("background-color: " + color)
 
     def closeEvent(self, event):
-        close = QtWidgets.QMessageBox.question(
-            self,
-            "QUIT",
-            "Are you sure want to stop process?",
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-        )
+        if self.Board.connectionStatus == True:
+            close = QtWidgets.QMessageBox.question(
+                self,
+                "QUIT",
+                "Are you sure want to stop process?",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            )
+        else:
+            close = QtWidgets.QMessageBox.Yes
 
         if close == QtWidgets.QMessageBox.Yes:
             event.accept()
@@ -205,7 +317,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 self.Board.setRelayState(channel, OFF)
                 button.setText("C{}: {}".format(channel, "OFF"))
 
+        self.resetProgramButtons()
+        self.ui.progressBar.setValue(0)
         self.Board.sendStateToHardware()
+        QApplication.processEvents()
 
     def addPortToMenueBar(self):
         self.ui.menuSetting.clear()
@@ -217,16 +332,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.ui.MenueBarElements[port.name][1].setText(port.name)
             self.ui.menuSetting.addAction(self.ui.MenueBarElements[port.name][1])
             self.ui.MenueBarElements[port.name][1].triggered.connect(self.tryToConnect)
-
-    @QtCore.pyqtSlot()
-    def tryToConnect(self):
-        portElementKey = self.sender()
-        port = self.ui.MenueBarElements[portElementKey.text()][0]
-        print("Connect to:" + port.name)
-        if self.Board.connectToPort(port):
-            self.setSystemStatus("Connected", "green")
-        else:
-            self.setSystemStatus("No Connection!", "red")
 
 
 def main():

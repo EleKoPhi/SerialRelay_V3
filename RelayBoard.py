@@ -10,9 +10,9 @@ import sys
 
 
 class RelayBoard(QObject):
-
     relayState = 0xFF
     serialConnection = None
+    connectedPort = None
 
     initCmd = bytearray([0x50, 0x51])
 
@@ -37,36 +37,37 @@ class RelayBoard(QObject):
         self.SerialConnection = None
 
     def connectToPort(self, port):
-
         try:
             self.SerialConnection = serial.Serial(port.device, timeout=1, baudrate=9600)
         except:
             return False
+
+        self.connectedPort = port
 
         self.SerialConnection.write(self.initCmd)
         self.SerialConnection.write(self.initCmd_3)
         self.SerialConnection.write(self.startupCmd)
         self.TurnAllOff()
         time.sleep(1)
-        self.TurnAllOn()
+        self.sendStateToHardware()
 
         return True
 
     def checkIfConnectionStillPressent(self):
-        #No connection established
+        # No connection established
         if self.SerialConnection == None:
             self.connectionStatus = False
             self.StatusSignal.emit(self.connectionStatus)
             return False
-                
-        #Check port elements and return true if port still exists
+
+        # Check port elements and return true if port still exists
         for port in self.getPossiblePortList():
             if self.SerialConnection.name.endswith(port.name):
                 self.connectionStatus = True
                 self.StatusSignal.emit(self.connectionStatus)
                 return True
-                
-        #If established port is no longer pressent return false
+
+        # If established port is no longer pressent return false
         self.connectionStatus = False
         self.StatusSignal.emit(self.connectionStatus)
         return False
@@ -76,40 +77,48 @@ class RelayBoard(QObject):
         return self.possiblePorts
 
     def set_bit(self, value, bit):
-        return value | (1<<bit)
+        return value | (1 << bit)
 
     def clear_bit(self, value, bit):
-        return value & ~(1<<bit)
+        return value & ~(1 << bit)
 
     def TurnAllOff(self):
         self.relayState = 0xFF
-        self.SerialConnection.write(self.relayState.to_bytes(1,"big"))
+        self.sendStateToHardware()
 
     def TurnAllOn(self):
         self.relayState = 0x00
-        self.SerialConnection.write(self.relayState.to_bytes(1,"big"))
+        self.sendStateToHardware()
 
     def TurnOn(self, channel):
         bitPossition = channel - 1
         self.relayState = self.clear_bit(self.relayState, bitPossition)
-        self.SerialConnection.write(self.relayState)
+        self.sendStateToHardware()
 
     def TurnOff(self, channel):
         bitPossition = channel - 1
         self.relayState = self.set_bit(self.relayState, bitPossition)
-        self.SerialConnection.write(self.relayState)
+        self.sendStateToHardware()
 
     def setRelayState(self, channel, status):
-        
         bit = channel - 1
         if status == True:
-            self.relayState = self.clear_bit(self.relayState,bit)
+            self.relayState = self.clear_bit(self.relayState, bit)
         if status == False:
             self.relayState = self.set_bit(self.relayState, bit)
 
     def sendStateToHardware(self):
         print(self.relayState)
-        self.SerialConnection.write(self.relayState.to_bytes(1,"big"))
+        if self.connectionStatus == True:
+            try:
+                self.SerialConnection.write(self.relayState.to_bytes(1, "big"))
+            except:
+                if self.connectToPort(self.connectedPort):
+                    self.SerialConnection.write(self.relayState.to_bytes(1, "big"))
+                    self.connectionStatus = True
 
-#b = RelayBoard()
-#b.connectToPort(None)
+                else:
+                    self.connectionStatus = False
+                    print("Could not reconnect")
+        else:
+            print("No connection pressent!")

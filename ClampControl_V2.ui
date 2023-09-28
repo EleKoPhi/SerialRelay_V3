@@ -526,7 +526,7 @@
        </widget>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="ProgressBarLayout" stretch="1,15,1">
+       <layout class="QHBoxLayout" name="ProgressBarLayout" stretch="0,10,0">
         <item>
          <spacer name="horizontalSpacer">
           <property name="orientation">
