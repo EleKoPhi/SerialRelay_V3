@@ -4,4 +4,4 @@ Simply run the ClampControlMain.py
 
 ## GUI Example
 
-![image](/Revision_1.0.0.png)
+<img src="/Revision_1.0.0.png" width=50% height=50%>
