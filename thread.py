@@ -16,4 +16,4 @@ class myThread(QRunnable):
         try:
             self.fn(*self.args, **self.kwargs)
         except:
-            print("Thead killed?")
+            ("Thread no longer running")

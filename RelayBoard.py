@@ -50,10 +50,11 @@ class RelayBoard(QObject):
         self.TurnAllOff()
         time.sleep(1)
         self.sendStateToHardware()
+        self.connectionStatus = True
 
         return True
 
-    def checkIfConnectionStillPressent(self):
+    def checkIfConnectionStillPresent(self):
         # No connection established
         if self.SerialConnection == None:
             self.connectionStatus = False
@@ -67,7 +68,7 @@ class RelayBoard(QObject):
                 self.StatusSignal.emit(self.connectionStatus)
                 return True
 
-        # If established port is no longer pressent return false
+        # If established port is no longer present return false
         self.connectionStatus = False
         self.StatusSignal.emit(self.connectionStatus)
         return False
@@ -91,13 +92,13 @@ class RelayBoard(QObject):
         self.sendStateToHardware()
 
     def TurnOn(self, channel):
-        bitPossition = channel - 1
-        self.relayState = self.clear_bit(self.relayState, bitPossition)
+        bitPosition = channel - 1
+        self.relayState = self.clear_bit(self.relayState, bitPosition)
         self.sendStateToHardware()
 
     def TurnOff(self, channel):
-        bitPossition = channel - 1
-        self.relayState = self.set_bit(self.relayState, bitPossition)
+        bitPosition = channel - 1
+        self.relayState = self.set_bit(self.relayState, bitPosition)
         self.sendStateToHardware()
 
     def setRelayState(self, channel, status):
@@ -121,4 +122,4 @@ class RelayBoard(QObject):
                     self.connectionStatus = False
                     print("Could not reconnect")
         else:
-            print("No connection pressent!")
+            print("No connection present!")

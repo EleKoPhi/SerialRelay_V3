@@ -1,3 +1,2 @@
-__pycache__/ClampControl.cpython-39.pyc
-__pycache__/RelayBoard.cpython-39.pyc
-__pycache__/UiToPy.cpython-39.pyc
+*__pycache__
+*.vscode
